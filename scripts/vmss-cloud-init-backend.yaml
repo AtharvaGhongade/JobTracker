@@ -24,7 +24,7 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - git clone https://github.com/AtharvaGhongade/jobtrackr.git /opt/jobtrackr
+  - git clone https://github.com/AtharvaGhongade/JobTracker.git /opt/jobtrackr
   - python3 -m venv /opt/jobtrackr/venv
   - /opt/jobtrackr/venv/bin/pip install -r /opt/jobtrackr/app/backend/requirements.txt
   - /opt/jobtrackr/venv/bin/pip install azure-identity azure-keyvault-secrets

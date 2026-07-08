@@ -32,7 +32,7 @@ write_files:
 
 runcmd:
   - mkdir -p /var/www/jobtrackr
-  - git clone https://github.com/AtharvaGhongade/jobtrackr.git /tmp/jobtrackr
+  - git clone https://github.com/AtharvaGhongade/JobTracker.git /tmp/jobtrackr
   - cp /tmp/jobtrackr/app/frontend/index.html /var/www/jobtrackr/index.html
   - rm -f /etc/nginx/sites-enabled/default
   - ln -sf /etc/nginx/sites-available/jobtrackr /etc/nginx/sites-enabled/jobtrackr
