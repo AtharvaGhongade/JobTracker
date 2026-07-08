@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>JobTrackr</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8eb;
+    --muted: #8a90a0;
+    --accent: #4f8cff;
+    --applied: #4f8cff;
+    --screening: #f5a623;
+    --interview: #9b59b6;
+    --offer: #2ecc71;
+    --rejected: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: var(--muted); margin-top: 0; margin-bottom: 24px; }
+
+  .stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 100px;
+  }
+  .stat-card .count { font-size: 22px; font-weight: 600; }
+  .stat-card .label { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+
+  form {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  input, select, textarea, button {
+    background: #10131a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  button {
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { opacity: 0.9; }
+
+  .filter-bar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  .filter-bar select { width: 180px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  th { color: var(--muted); font-weight: 500; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: #0f1115;
+  }
+  .badge.applied { background: var(--applied); }
+  .badge.screening { background: var(--screening); }
+  .badge.interview { background: var(--interview); }
+  .badge.offer { background: var(--offer); }
+  .badge.rejected { background: var(--rejected); }
+
+  .row-actions button {
+    padding: 4px 8px;
+    font-size: 11px;
+    margin-right: 4px;
+  }
+  .delete-btn { background: var(--rejected) !important; }
+
+  #error-banner {
+    display: none;
+    background: #3a1d1d;
+    border: 1px solid var(--rejected);
+    color: #ffb3b3;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<h1>JobTrackr</h1>
+<p class="sub">Track every application in one place — deployed on Azure, backed by MySQL.</p>
+
+<div id="error-banner"></div>
+
+<div class="stats" id="stats"></div>
+
+<form id="add-form">
+  <input type="text" id="company" placeholder="Company" required />
+  <input type="text" id="role" placeholder="Role" required />
+  <select id="status">
+    <option value="applied">Applied</option>
+    <option value="screening">Screening</option>
+    <option value="interview">Interview</option>
+    <option value="offer">Offer</option>
+    <option value="rejected">Rejected</option>
+  </select>
+  <input type="date" id="applied_date" />
+  <button type="submit">Add</button>
+</form>
+
+<div class="filter-bar">
+  <label for="filter">Filter by status:</label>
+  <select id="filter">
+    <option value="">All</option>
+    <option value="applied">Applied</option>
+    <option value="screening">Screening</option>
+    <option value="interview">Interview</option>
+    <option value="offer">Offer</option>
+    <option value="rejected">Rejected</option>
+  </select>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Company</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th>Applied</th>
+      <th>Notes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+// If the frontend and backend are served from the same origin (Nginx proxying
+// /api/ to the backend, as set up in the deployment steps), leave this empty.
+// For pure local testing without Nginx, point it at http://localhost:5000
+const API_BASE = "";
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function showError(msg) {
+  const banner = document.getElementById("error-banner");
+  banner.textContent = msg;
+  banner.style.display = "block";
+  setTimeout(() => (banner.style.display = "none"), 4000);
+}
+
+async function loadStats() {
+  const stats = await apiFetch("/api/stats");
+  const el = document.getElementById("stats");
+  el.innerHTML = Object.entries(stats)
+    .map(([label, count]) => `
+      <div class="stat-card">
+        <div class="count">${count}</div>
+        <div class="label">${label}</div>
+      </div>`)
+    .join("");
+}
+
+async function loadApplications() {
+  const filter = document.getElementById("filter").value;
+  const query = filter ? `?status=${filter}` : "";
+  const apps = await apiFetch(`/api/applications${query}`);
+  const rows = document.getElementById("rows");
+  rows.innerHTML = apps.map(a => `
+    <tr>
+      <td>${a.company}</td>
+      <td>${a.role}</td>
+      <td><span class="badge ${a.status}">${a.status}</span></td>
+      <td>${a.applied_date || "-"}</td>
+      <td>${a.notes || ""}</td>
+      <td class="row-actions">
+        <button onclick="advanceStatus(${a.id}, '${a.status}')">Advance</button>
+        <button class="delete-btn" onclick="deleteApp(${a.id})">Delete</button>
+      </td>
+    </tr>`).join("");
+}
+
+const STATUS_ORDER = ["applied", "screening", "interview", "offer"];
+
+async function advanceStatus(id, currentStatus) {
+  const idx = STATUS_ORDER.indexOf(currentStatus);
+  if (idx === -1 || idx === STATUS_ORDER.length - 1) return;
+  const nextStatus = STATUS_ORDER[idx + 1];
+  try {
+    await apiFetch(`/api/applications/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    await refresh();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+async function deleteApp(id) {
+  try {
+    await apiFetch(`/api/applications/${id}`, { method: "DELETE" });
+    await refresh();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+async function refresh() {
+  try {
+    await Promise.all([loadStats(), loadApplications()]);
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+document.getElementById("add-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const payload = {
+    company: document.getElementById("company").value,
+    role: document.getElementById("role").value,
+    status: document.getElementById("status").value,
+    applied_date: document.getElementById("applied_date").value || null,
+  };
+  try {
+    await apiFetch("/api/applications", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    e.target.reset();
+    await refresh();
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+document.getElementById("filter").addEventListener("change", loadApplications);
+
+refresh();
+</script>
+
+</body>
+</html>

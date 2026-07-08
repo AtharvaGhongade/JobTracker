@@ -1,0 +1,34 @@
+#cloud-config
+package_update: true
+packages:
+  - python3-pip
+  - python3-venv
+  - git
+
+write_files:
+  - path: /etc/systemd/system/jobtrackr-backend.service
+    content: |
+      [Unit]
+      Description=JobTrackr Flask backend
+      After=network.target
+
+      [Service]
+      User=azureuser
+      WorkingDirectory=/opt/jobtrackr/app/backend
+      EnvironmentFile=/opt/jobtrackr/app/backend/.env
+      ExecStart=/opt/jobtrackr/venv/bin/gunicorn -w 3 -b 0.0.0.0:5000 app:app
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - git clone https://github.com/AtharvaGhongade/jobtrackr.git /opt/jobtrackr
+  - python3 -m venv /opt/jobtrackr/venv
+  - /opt/jobtrackr/venv/bin/pip install -r /opt/jobtrackr/app/backend/requirements.txt
+  - /opt/jobtrackr/venv/bin/pip install azure-identity azure-keyvault-secrets
+  - /opt/jobtrackr/venv/bin/python /opt/jobtrackr/scripts/fetch_secrets.py > /opt/jobtrackr/app/backend/.env
+  - systemctl daemon-reload
+  - systemctl enable jobtrackr-backend
+  - systemctl start jobtrackr-backend

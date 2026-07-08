@@ -1,0 +1,12 @@
+CREATE DATABASE IF NOT EXISTS jobtrackr;
+USE jobtrackr;
+
+CREATE TABLE IF NOT EXISTS applications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company VARCHAR(120) NOT NULL,
+    role VARCHAR(120) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'applied',
+    applied_date DATE NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
