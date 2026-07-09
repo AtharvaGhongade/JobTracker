@@ -1,0 +1,6 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is git-ignored — never commit real secrets to GitHub.
+
+key_vault_name        = "kv-jobtrackr-02"     # must be globally unique, lowercase/numbers/hyphens, 3-24 chars
+mysql_server_name     = "mysql-jobtrackr-01"  # must be globally unique
+mysql_admin_password  = "ReplaceWithAStrongPassword123!"
