@@ -7,6 +7,7 @@ resource "azurerm_key_vault" "main" {
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   sku_name                      = "standard"
   public_network_access_enabled = false
+  enable_rbac_authorization     = true
 }
 
 # RBAC role so your own account can manage secrets (Cloud Shell / portal, since
