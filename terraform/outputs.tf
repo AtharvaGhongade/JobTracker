@@ -21,3 +21,7 @@ output "mysql_server_fqdn" {
 output "bastion_name" {
   value = azurerm_bastion_host.main.name
 }
+
+output "appgateway_public_ip" {
+  value = azurerm_public_ip.appgw.ip_address
+}
