@@ -6,7 +6,7 @@ Prints an .env file to stdout, which cloud-init redirects into place.
 from azure.identity import ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 
-VAULT_URL = "https://kv-jobtrackr-XXXX.vault.azure.net/"  # replace XXXX with your Key Vault name
+VAULT_URL = "https://kv-jobtrackr-atharva01.vault.azure.net/"  
 
 credential = ManagedIdentityCredential()
 client = SecretClient(vault_url=VAULT_URL, credential=credential)
