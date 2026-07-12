@@ -32,3 +32,13 @@ resource "azurerm_mysql_flexible_server" "main" {
 
   depends_on = [azurerm_private_dns_zone_virtual_network_link.mysql]
 }
+
+# Azure MySQL Flexible Server only creates the server itself - the actual
+# database (schema) inside it has to be created separately.
+resource "azurerm_mysql_flexible_database" "jobtrackr" {
+  name                = "jobtrackr"
+  resource_group_name = azurerm_resource_group.main.name
+  server_name         = azurerm_mysql_flexible_server.main.name
+  charset             = "utf8mb4"
+  collation           = "utf8mb4_unicode_ci"
+}
