@@ -11,6 +11,7 @@ resource "azurerm_public_ip" "appgw" {
   resource_group_name = azurerm_resource_group.main.name
   allocation_method   = "Static"
   sku                 = "Standard"
+  domain_name_label   = "jobtrackr-atharva"
 }
 
 # App Gateway talks to the frontend LB over HTTP on port 80 - nsg-web only
