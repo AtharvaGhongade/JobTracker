@@ -148,9 +148,13 @@ def stats():
 
 @app.route("/api/init-db", methods=["POST"])
 def init_db():
-    # Convenience endpoint for local/dev use only — creates tables if they don't exist.
-    # Don't expose this in production; it's here so you're not fighting migrations
-    # while you're still learning the app itself.
+    # Gated behind a shared secret so this isn't a public, unauthenticated
+    # schema-reset endpoint. Set INIT_DB_SECRET as an env var (add it to
+    # fetch_secrets.py / Key Vault the same way as the DB password).
+    expected_secret = os.environ.get("INIT_DB_SECRET")
+    provided_secret = request.headers.get("X-Init-Secret")
+    if not expected_secret or provided_secret != expected_secret:
+        return jsonify(error="unauthorized"), 401
     db.create_all()
     return jsonify(status="tables created"), 200
 
