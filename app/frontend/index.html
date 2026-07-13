@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>JobTrackr</title>
+<title>JobTrackr — Job Application Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%93%8B</text></svg>" />
 <style>
   :root {
     --bg: #0f1115;
@@ -67,8 +68,23 @@
     border: none;
     cursor: pointer;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   }
-  button:hover { opacity: 0.9; }
+  button:hover:not(:disabled) { opacity: 0.9; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .filter-bar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
   .filter-bar select { width: 180px; }
@@ -104,15 +120,29 @@
   }
   .delete-btn { background: var(--rejected) !important; }
 
-  #error-banner {
+  .empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+
+  #error-banner, #success-banner {
     display: none;
-    background: #3a1d1d;
-    border: 1px solid var(--rejected);
-    color: #ffb3b3;
     padding: 10px 14px;
     border-radius: 8px;
     margin-bottom: 16px;
     font-size: 13px;
+  }
+  #error-banner {
+    background: #3a1d1d;
+    border: 1px solid var(--rejected);
+    color: #ffb3b3;
+  }
+  #success-banner {
+    background: #1d3a24;
+    border: 1px solid var(--offer);
+    color: #b3ffc2;
   }
 </style>
 </head>
@@ -122,6 +152,7 @@
 <p class="sub">Track every application in one place — deployed on Azure, backed by MySQL.</p>
 
 <div id="error-banner"></div>
+<div id="success-banner"></div>
 
 <div class="stats" id="stats"></div>
 
@@ -136,7 +167,7 @@
     <option value="rejected">Rejected</option>
   </select>
   <input type="date" id="applied_date" />
-  <button type="submit">Add</button>
+  <button type="submit" id="add-btn">Add</button>
 </form>
 
 <div class="filter-bar">
@@ -190,6 +221,13 @@ function showError(msg) {
   setTimeout(() => (banner.style.display = "none"), 4000);
 }
 
+function showSuccess(msg) {
+  const banner = document.getElementById("success-banner");
+  banner.textContent = msg;
+  banner.style.display = "block";
+  setTimeout(() => (banner.style.display = "none"), 2500);
+}
+
 async function loadStats() {
   const stats = await apiFetch("/api/stats");
   const el = document.getElementById("stats");
@@ -207,6 +245,20 @@ async function loadApplications() {
   const query = filter ? `?status=${filter}` : "";
   const apps = await apiFetch(`/api/applications${query}`);
   const rows = document.getElementById("rows");
+
+  if (apps.length === 0) {
+    rows.innerHTML = `
+      <tr>
+        <td colspan="6">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <div>No applications yet — add your first one above.</div>
+          </div>
+        </td>
+      </tr>`;
+    return;
+  }
+
   rows.innerHTML = apps.map(a => `
     <tr>
       <td>${a.company}</td>
@@ -216,7 +268,7 @@ async function loadApplications() {
       <td>${a.notes || ""}</td>
       <td class="row-actions">
         <button onclick="advanceStatus(${a.id}, '${a.status}')">Advance</button>
-        <button class="delete-btn" onclick="deleteApp(${a.id})">Delete</button>
+        <button class="delete-btn" onclick="deleteApp(${a.id}, '${a.company.replace(/'/g, "\\'")}')">Delete</button>
       </td>
     </tr>`).join("");
 }
@@ -238,9 +290,13 @@ async function advanceStatus(id, currentStatus) {
   }
 }
 
-async function deleteApp(id) {
+async function deleteApp(id, company) {
+  if (!confirm(`Delete the application for ${company}? This can't be undone.`)) {
+    return;
+  }
   try {
     await apiFetch(`/api/applications/${id}`, { method: "DELETE" });
+    showSuccess("Application deleted.");
     await refresh();
   } catch (e) {
     showError(e.message);
@@ -257,21 +313,30 @@ async function refresh() {
 
 document.getElementById("add-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const btn = document.getElementById("add-btn");
   const payload = {
     company: document.getElementById("company").value,
     role: document.getElementById("role").value,
     status: document.getElementById("status").value,
     applied_date: document.getElementById("applied_date").value || null,
   };
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Adding`;
+
   try {
     await apiFetch("/api/applications", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     e.target.reset();
+    showSuccess("Application added.");
     await refresh();
   } catch (err) {
     showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Add";
   }
 });
 
