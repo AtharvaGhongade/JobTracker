@@ -2,7 +2,7 @@ resource "azurerm_subnet" "appgw" {
   name                 = "snet-appgw"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.1.5.0/24"] # a new, unused range - App Gateway needs its own dedicated subnet
+  address_prefixes     = ["10.1.5.0/24"] 
 }
 
 resource "azurerm_public_ip" "appgw" {
@@ -14,8 +14,6 @@ resource "azurerm_public_ip" "appgw" {
   domain_name_label   = "jobtrackr-atharva"
 }
 
-# App Gateway talks to the frontend LB over HTTP on port 80 - nsg-web only
-# allowed 443 before, so this adds the missing rule.
 resource "azurerm_network_security_rule" "web_allow_http" {
   name                        = "Allow-HTTP-Inbound"
   priority                    = 110
@@ -30,8 +28,6 @@ resource "azurerm_network_security_rule" "web_allow_http" {
   network_security_group_name = azurerm_network_security_group.web.name
 }
 
-# Azure retired inline WAF config on the gateway resource itself - WAF rules
-# now live on a separate policy resource that gets attached to the gateway.
 resource "azurerm_web_application_firewall_policy" "main" {
   name                = "waf-policy-jobtrackr"
   resource_group_name = azurerm_resource_group.main.name
@@ -59,7 +55,7 @@ resource "azurerm_application_gateway" "main" {
   sku {
     name     = "WAF_v2"
     tier     = "WAF_v2"
-    capacity = 1 # keep at 1 for a personal project - WAF_v2 billing is per-instance-hour and adds up
+    capacity = 1 
   }
 
   ssl_policy {

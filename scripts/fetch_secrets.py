@@ -6,15 +6,17 @@ Prints an .env file to stdout, which cloud-init redirects into place.
 from azure.identity import ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 
-VAULT_URL = "https://kv-jobtrackr-atharva01.vault.azure.net/"  
+VAULT_URL = "https://kv-jobtrackr-atharva01.vault.azure.net/"
 
 credential = ManagedIdentityCredential()
 client = SecretClient(vault_url=VAULT_URL, credential=credential)
 
 db_password = client.get_secret("mysql-admin-password").value
 db_host = client.get_secret("mysql-host").value
+init_db_secret = client.get_secret("init-db-secret").value
 
 print("DB_USER=mysqladmin")
 print(f"DB_PASSWORD={db_password}")
 print(f"DB_HOST={db_host}")
 print("DB_NAME=jobtrackr")
+print(f"INIT_DB_SECRET={init_db_secret}")
