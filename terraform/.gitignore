@@ -4,3 +4,8 @@
 .terraform.lock.hcl
 terraform.tfvars
 crash.log
+appgw.pfx
+appgw.key
+appgw.crt
+jobtrackr-real.pfx
+jobtrackr-real.pfx
