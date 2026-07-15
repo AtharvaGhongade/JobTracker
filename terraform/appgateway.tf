@@ -2,7 +2,7 @@ resource "azurerm_subnet" "appgw" {
   name                 = "snet-appgw"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.1.5.0/24"] 
+  address_prefixes     = ["10.1.5.0/24"]
 }
 
 resource "azurerm_public_ip" "appgw" {
@@ -55,7 +55,7 @@ resource "azurerm_application_gateway" "main" {
   sku {
     name     = "WAF_v2"
     tier     = "WAF_v2"
-    capacity = 1 
+    capacity = 1
   }
 
   ssl_policy {
@@ -73,24 +73,11 @@ resource "azurerm_application_gateway" "main" {
     public_ip_address_id = azurerm_public_ip.appgw.id
   }
 
+  # --- HTTP (port 80) ---
+
   frontend_port {
     name = "port-80"
     port = 80
-  }
-
-  backend_address_pool {
-    name = "appgw-backend-pool"
-    ip_addresses = [
-      azurerm_lb.frontend.frontend_ip_configuration[0].private_ip_address
-    ]
-  }
-
-  backend_http_settings {
-    name                  = "appgw-http-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 80
-    protocol              = "Http"
-    request_timeout       = 20
   }
 
   http_listener {
@@ -108,4 +95,55 @@ resource "azurerm_application_gateway" "main" {
     backend_http_settings_name = "appgw-http-settings"
     priority                   = 100
   }
+
+  # --- HTTPS (port 443) ---
+
+ssl_certificate {
+  name     = "appgw-real-cert"
+  data     = filebase64("${path.module}/jobtrackr-real.pfx")
+  password = "JobTrackrCert2026!"
+}
+
+  frontend_port {
+    name = "port-443"
+    port = 443
+  }
+
+http_listener {
+  name                           = "appgw-https-listener"
+  frontend_ip_configuration_name = "appgw-frontend-ip"
+  frontend_port_name             = "port-443"
+  protocol                       = "Https"
+  ssl_certificate_name           = "appgw-real-cert"
+}
+
+  request_routing_rule {
+    name                       = "appgw-https-routing-rule"
+    rule_type                  = "Basic"
+    http_listener_name         = "appgw-https-listener"
+    backend_address_pool_name  = "appgw-backend-pool"
+    backend_http_settings_name = "appgw-http-settings"
+    priority                   = 90
+  }
+
+
+  backend_address_pool {
+    name = "appgw-backend-pool"
+    ip_addresses = [
+      azurerm_lb.frontend.frontend_ip_configuration[0].private_ip_address
+    ]
+  }
+
+  backend_http_settings {
+    name                   = "appgw-http-settings"
+    cookie_based_affinity  = "Disabled"
+    port                   = 80
+    protocol               = "Http"
+    request_timeout        = 20
+  }
+
+  identity {
+  type         = "UserAssigned"
+  identity_ids = ["/subscriptions/f499cfc9-f0a4-4994-9fdc-03ed098789ad/resourceGroups/rg-jobtrackr-persistent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-appgw-cert-reader"]
+}
 }
